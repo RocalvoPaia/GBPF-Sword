@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GBPF — Sword Damage Lab</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #090d16;
+    --panel: #111827;
+    --panel-2: #151f31;
+    --line: #263449;
+    --text: #eef4ff;
+    --muted: #91a2bc;
+    --gold: #f2c46d;
+    --gold-2: #ffe4a3;
+    --blue: #67a8ff;
+    --cyan: #58d7dc;
+    --green: #71ddb2;
+    --red: #ff8d8d;
+    --radius: 16px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--text);
+    background: radial-gradient(ellipse at top left, #16243b 0%, var(--bg) 45%, #090d16 100%);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  button, input, select, textarea { font: inherit; }
+  button { cursor: pointer; }
+  .app { width: min(1440px, calc(100% - 34px)); margin: 0 auto; padding: 30px 0 48px; }
+  .topbar { display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 24px; }
+  .brand { display: flex; gap: 14px; align-items: center; }
+  .brand-mark { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 15px; color: #1a1b22; font-size: 25px; background: linear-gradient(135deg, var(--gold-2), #c28c31); box-shadow: 0 8px 28px #f2c46d1a; }
+  .eyebrow { font-size: 11px; letter-spacing: .19em; color: var(--gold); font-weight: 800; text-transform: uppercase; }
+  h1 { font-size: clamp(25px, 4vw, 36px); line-height: 1.08; margin: 4px 0 0; letter-spacing: -.04em; }
+  .subtitle { color: var(--muted); margin: 8px 0 0; max-width: 730px; font-size: 14px; line-height: 1.6; }
+  .version { flex: 0 0 auto; padding: 8px 12px; border: 1px solid #394457; border-radius: 999px; color: #c4d0e3; font-size: 12px; background: #101725; }
+  .panel { background: linear-gradient(145deg, #141e2d, #101725 72%); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: 0 14px 38px #00000014; }
+  .controls { display: grid; grid-template-columns: 1.1fr 1.1fr 1fr; gap: 14px; padding: 17px; margin-bottom: 16px; }
+  .control { min-width: 0; background: #0d1420; border: 1px solid #243247; border-radius: 13px; padding: 14px 15px; }
+  .control-label { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .07em; }
+  .value-badge { color: var(--gold-2); font-weight: 800; font-size: 18px; letter-spacing: 0; text-transform: none; font-variant-numeric: tabular-nums; }
+  .control-bottom { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
+  input[type="range"] { min-width: 0; width: 100%; accent-color: var(--gold); }
+  input[type="number"], select, textarea { color: var(--text); background: #080e18; border: 1px solid #2d3b51; border-radius: 9px; outline: none; }
+  input[type="number"] { width: 84px; padding: 9px 10px; font-weight: 750; }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold); box-shadow: 0 0 0 3px #f2c46d16; }
+  .formula { color: #93a5bd; font-size: 11px; margin-top: 8px; line-height: 1.4; }
+  .view-control { display: flex; flex-direction: column; gap: 10px; }
+  .view-control select { width: 100%; padding: 10px 11px; }
+  .view-control label { font-size: 12px; color: var(--muted); font-weight: 700; }
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+  .stat { padding: 17px 18px; min-width: 0; }
+  .stat-label { color: var(--muted); font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
+  .stat-value { font-size: clamp(20px, 2.3vw, 27px); font-weight: 850; letter-spacing: -.04em; margin-top: 9px; font-variant-numeric: tabular-nums; }
+  .stat-value.gold { color: var(--gold-2); }
+  .stat-detail { color: #a4b4ca; font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
+  .section-head { display: flex; justify-content: space-between; align-items: end; gap: 12px; padding: 0 2px; margin: 24px 0 12px; }
+  .section-head h2 { margin: 0; font-size: 19px; letter-spacing: -.025em; }
+  .section-head p { color: var(--muted); font-size: 12px; margin: 5px 0 0; }
+  .toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .btn { border: 1px solid #34435a; background: #182338; color: #e9f1ff; border-radius: 10px; padding: 9px 12px; font-weight: 700; font-size: 12px; transition: .15s ease; }
+  .btn:hover { transform: translateY(-1px); border-color: #647690; background: #202f47; }
+  .btn.primary { color: #1b1c22; border-color: #e3b85d; background: linear-gradient(135deg, var(--gold-2), #e2b04f); }
+  .btn.subtle { background: transparent; }
+  .table-panel { overflow: hidden; }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 850px; }
+  thead { background: #0b111c; }
+  th { padding: 13px 14px; color: #8fa2bd; text-transform: uppercase; font-size: 10px; letter-spacing: .09em; text-align: right; white-space: nowrap; border-bottom: 1px solid #263348; }
+  th:first-child, td:first-child { text-align: center; width: 54px; }
+  th:nth-child(2), td:nth-child(2) { text-align: left; }
+  td { padding: 12px 14px; text-align: right; white-space: nowrap; font-size: 13px; border-bottom: 1px solid #202c3f; font-variant-numeric: tabular-nums; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: #ffffff05; }
+  .rank { color: #8395af; font-weight: 800; }
+  .rank.first { color: var(--gold-2); }
+  .sword-cell { display: flex; align-items: center; gap: 11px; min-width: 215px; }
+  .icon-frame { position: relative; width: 43px; height: 43px; border-radius: 12px; flex: 0 0 43px; display: grid; place-items: center; background: linear-gradient(145deg, #25334a, #111a29); border: 1px solid #35445a; overflow: hidden; color: #a8bad3; font-size: 20px; }
+  .icon-frame img { width: 100%; height: 100%; object-fit: contain; padding: 4px; position: absolute; inset: 0; background: #111a29; }
+  .sword-name { font-weight: 750; color: #f0f5ff; }
+  .sword-sub { margin-top: 3px; font-size: 10px; color: #7286a2; }
+  .small-action { margin-left: 4px; padding: 5px 7px; font-size: 10px; color: #b6c5d9; background: #111a29; border: 1px solid #2b3a51; border-radius: 7px; }
+  .number-cell { color: #bdcadd; }
+  .base-cell { color: #c3d7f4; }
+  .total-cell { color: #a5c7ff; font-weight: 800; }
+  .haki-cell { color: #f6d186; font-weight: 850; }
+  .leader-row { background: linear-gradient(90deg, #f2c46d0b, transparent 80%); }
+  .leader-row td:first-child { box-shadow: inset 3px 0 var(--gold); }
+  .chart-panel { padding: 18px; }
+  .chart-legend { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; border-bottom: 1px solid #263348; padding-bottom: 14px; margin-bottom: 6px; }
+  .legend-label { font-size: 12px; font-weight: 750; }
+  .legend-note { color: var(--muted); font-size: 11px; }
+  .bar-row { display: grid; grid-template-columns: minmax(150px, 220px) minmax(100px, 1fr) 80px; align-items: center; gap: 14px; padding: 10px 0; border-bottom: 1px solid #ffffff08; }
+  .bar-row:last-child { border-bottom: 0; }
+  .bar-name { display: flex; align-items: center; gap: 9px; min-width: 0; }
+  .bar-name .icon-frame { width: 34px; height: 34px; flex-basis: 34px; border-radius: 9px; font-size: 16px; }
+  .bar-name img { padding: 3px; }
+  .bar-name-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; font-weight: 750; }
+  .bar-track { height: 15px; border-radius: 99px; background: #080e18; border: 1px solid #26344a; overflow: hidden; }
+  .bar-fill { height: 100%; min-width: 2px; border-radius: inherit; background: linear-gradient(90deg, #477ed1, #71b4ff); box-shadow: 0 0 15px #67a8ff23; transition: width .25s ease; }
+  .bar-row:first-child .bar-fill { background: linear-gradient(90deg, #b98631, #ffe3a0); box-shadow: 0 0 17px #f2c46d24; }
+  .bar-value { text-align: right; font-weight: 850; font-size: 13px; color: var(--gold-2); font-variant-numeric: tabular-nums; }
+  .bar-secondary { grid-column: 2 / 4; color: #7f92ac; font-size: 10px; margin-top: -8px; }
+  .empty-state { padding: 24px; text-align: center; color: var(--muted); }
+  details { margin-top: 22px; }
+  summary { cursor: pointer; color: #c7d4e7; font-size: 13px; font-weight: 750; padding: 17px 19px; list-style-position: inside; }
+  .editor-content { padding: 0 18px 18px; }
+  .editor-content p { color: var(--muted); font-size: 12px; line-height: 1.6; margin-top: 0; }
+  textarea { display: block; width: 100%; min-height: 300px; resize: vertical; padding: 13px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 12px; line-height: 1.55; tab-size: 2; }
+  .editor-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .notice { color: var(--muted); font-size: 11px; min-height: 16px; margin-top: 8px; }
+  .footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; color: #6e819c; font-size: 11px; padding: 20px 3px 0; }
+  .footer strong { color: #98aac2; }
+  .hidden { display: none !important; }
+  .toast { position: fixed; z-index: 10; bottom: 20px; left: 50%; transform: translateX(-50%); max-width: calc(100vw - 30px); padding: 12px 16px; border: 1px solid #46546b; border-radius: 12px; background: #121c2b; color: #edf4ff; box-shadow: 0 12px 35px #0008; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s ease; }
+  .toast.visible { opacity: 1; }
+  @media (max-width: 900px) { .controls { grid-template-columns: 1fr 1fr; } .view-control { grid-column: 1 / -1; } .stats { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 560px) { .app { width: min(100% - 20px, 1440px); padding-top: 17px; } .topbar { align-items: flex-start; } .version { display: none; } .controls { grid-template-columns: 1fr; padding: 10px; } .view-control { grid-column: auto; } .stats { gap: 9px; } .stat { padding: 13px; } .section-head { align-items: flex-start; flex-direction: column; } .bar-row { grid-template-columns: minmax(108px, 140px) minmax(45px, 1fr) 65px; gap: 8px; } .bar-name { gap: 6px; } .bar-name .icon-frame { width: 28px; height: 28px; flex-basis: 28px; } .bar-name-text { font-size: 10px; } .chart-panel { padding: 12px; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">⚔</div>
+      <div>
+        <div class="eyebrow">Grand Blox Piece Fruit</div>
+        <h1>Sword Damage Lab</h1>
+        <p class="subtitle">Compare o dano das espadas, simule Pontos de SwordPower e ajuste o nível de Haki em tempo real.</p>
+      </div>
+    </div>
+    <div class="version">BALANCE TOOL · V1.0</div>
+  </header>
+
+  <section class="panel controls" aria-label="Configurações de cálculo">
+    <div class="control">
+      <div class="control-label"><label for="points">Pontos de SwordPower</label><span class="value-badge" id="pointsBadge">100</span></div>
+      <div class="control-bottom">
+        <input id="pointsRange" type="range" min="0" max="1000" step="1" value="100" aria-label="Pontos de SwordPower" />
+        <input id="points" type="number" min="0" max="10000" step="1" value="100" aria-label="Valor exato dos pontos" />
+      </div>
+      <div class="formula">Cada ponto multiplica o atributo “Dano por Status”.</div>
+    </div>
+    <div class="control">
+      <div class="control-label"><label for="hakiLevel">Nível de Haki</label><span class="value-badge" id="hakiBadge">15</span></div>
+      <div class="control-bottom">
+        <input id="hakiRange" type="range" min="0" max="100" step="1" value="15" aria-label="Nível de Haki" />
+        <input id="hakiLevel" type="number" min="0" max="10000" step="1" value="15" aria-label="Valor exato do Haki" />
+      </div>
+      <div class="formula">O bônus de Haki é somado depois do cálculo do dano total.</div>
+    </div>
+    <div class="control view-control">
+      <label for="sortMode">Ordenar ranking por</label>
+      <select id="sortMode">
+        <option value="hakiDamage">Dano com Haki (padrão)</option>
+        <option value="totalDamage">Dano total, sem Haki</option>
+        <option value="baseDamage">Dano base</option>
+        <option value="statusDamage">Dano por Status</option>
+        <option value="haki">Atributo Haki</option>
+      </select>
+      <div class="formula">O ranking e o gráfico usam o mesmo critério de ordenação.</div>
+    </div>
+  </section>
+
+  <section class="stats" aria-label="Resumo do cálculo">
+    <div class="panel stat"><div class="stat-label">Espadas cadastradas</div><div class="stat-value" id="countStat">12</div><div class="stat-detail">No dicionário de dados</div></div>
+    <div class="panel stat"><div class="stat-label">Maior dano com Haki</div><div class="stat-value gold" id="bestDamageStat">590</div><div class="stat-detail" id="bestNameStat">Steel Sword</div></div>
+    <div class="panel stat"><div class="stat-label">Menor dano com Haki</div><div class="stat-value" id="worstDamageStat">355</div><div class="stat-detail" id="worstNameStat">Paper Sword</div></div>
+    <div class="panel stat"><div class="stat-label">Diferença entre extremos</div><div class="stat-value" id="differenceStat">235</div><div class="stat-detail">Pontos de dano</div></div>
+  </section>
+
+  <div class="section-head">
+    <div><h2>Comparação das espadas</h2><p id="rankDescription">Ordenado por dano com Haki, do maior para o menor.</p></div>
+    <div class="toolbar">
+      <button class="btn" id="bulkIconButton" type="button">＋ Importar ícones</button>
+      <button class="btn" id="exportCsvButton" type="button">Exportar CSV</button>
+      <input id="bulkIcons" class="hidden" type="file" accept="image/*" multiple />
+    </div>
+  </div>
+
+  <section id="tableView" class="panel table-panel">
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>#</th><th>Espada / ícone</th><th>Dano base</th><th>Dano por status</th><th>Haki</th><th>Dano total</th><th>Dano com Haki</th>
+        </tr></thead>
+        <tbody id="tableBody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="chartView" class="panel chart-panel hidden" aria-label="Gráfico de dano">
+    <div class="chart-legend"><div class="legend-label" id="chartTitle">Dano com Haki</div><div class="legend-note">Barras proporcionais ao maior valor da lista</div></div>
+    <div id="chartBody"></div>
+  </section>
+
+  <section class="section-head" style="margin-top:28px">
+    <div><h2>Visualização</h2><p>Escolha como comparar os dados.</p></div>
+    <div class="toolbar" role="group" aria-label="Modo de visualização">
+      <button class="btn primary" data-view="table" type="button">Tabela</button>
+      <button class="btn" data-view="chart" type="button">Gráfico</button>
+      <button class="btn" data-view="both" type="button">Ambos</button>
+    </div>
+  </section>
+
+  <details class="panel" id="dataEditor">
+    <summary>Editar o dicionário de espadas (JSON)</summary>
+    <div class="editor-content">
+      <p>Edite os valores abaixo e clique em <strong>Aplicar dados</strong>. Os campos usados no cálculo são <code>baseDamage</code>, <code>statusDamage</code> e <code>haki</code>. O campo <code>icon</code> pode ser um caminho relativo, como <code>icons/steel-sword.png</code>; você também pode importar os arquivos pela interface acima. IDs devem ser únicos.</p>
+      <textarea id="jsonEditor" spellcheck="false" aria-label="Dicionário JSON das espadas"></textarea>
+      <div class="editor-actions">
+        <button class="btn primary" id="applyJsonButton" type="button">Aplicar dados</button>
+        <button class="btn" id="downloadJsonButton" type="button">Baixar JSON</button>
+        <button class="btn subtle" id="resetButton" type="button">Restaurar dados originais</button>
+      </div>
+      <div class="notice" id="editorNotice" aria-live="polite"></div>
+    </div>
+  </details>
+
+  <div class="footer">
+    <span><strong>Fórmulas:</strong> Dano total = Dano base + (Dano por status × Pontos)</span>
+    <span>Dano com Haki = Dano total + (Haki × Nível de Haki)</span>
+  </div>
+</div>
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script>
+'use strict';
+
+// ============================================================
+// DICIONÁRIO DAS ESPADAS — edite os valores neste bloco se quiser.
+// baseDamage = dano fixo | statusDamage = dano por ponto | haki = bônus por nível de Haki
+// icon aceita um caminho relativo, por exemplo: "icons/steel-sword.png".
+// ============================================================
+const DEFAULT_SWORDS = [
+  { id: "duo-haunted-katana", name: "Duo Haunted Katana", baseDamage: 35, statusDamage: 3.05, haki: 16, icon: "icons/duo-haunted-katana.png" },
+  { id: "brighcore", name: "Brighcore", baseDamage: 45, statusDamage: 3.00, haki: 5, icon: "icons/brighcore.png" },
+  { id: "iron-spear", name: "IronSpear", baseDamage: 40, statusDamage: 2.90, haki: 16, icon: "icons/iron-spear.png" },
+  { id: "toxic-katana-v2", name: "ToxicKatana V2", baseDamage: 35, statusDamage: 2.85, haki: 15, icon: "icons/toxic-katana-v2.png" },
+  { id: "steel-sword", name: "Steel Sword", baseDamage: 50, statusDamage: 2.70, haki: 18, icon: "icons/steel-sword.png" },
+  { id: "triple-katana", name: "Triple Katana", baseDamage: 30, statusDamage: 2.75, haki: 15, icon: "icons/triple-katana.png" },
+  { id: "tribal-spear", name: "Tribal Spear", baseDamage: 20, statusDamage: 2.65, haki: 10, icon: "icons/tribal-spear.png" },
+  { id: "duo-katana", name: "Duo Katana", baseDamage: 25, statusDamage: 2.68, haki: 12, icon: "icons/duo-katana.png" },
+  { id: "flame-katana", name: "Flame Katana", baseDamage: 15, statusDamage: 2.65, haki: 10, icon: "icons/flame-katana.png" },
+  { id: "toxic-katana", name: "Toxic Katana", baseDamage: 10, statusDamage: 2.55, haki: 10, icon: "icons/toxic-katana.png" },
+  { id: "katana", name: "Katana", baseDamage: 10, statusDamage: 2.50, haki: 8, icon: "icons/katana.png" },
+  { id: "paper-sword", name: "Paper Sword", baseDamage: 10, statusDamage: 2.40, haki: 7, icon: "icons/paper-sword.png" }
+];
+
+const $ = (selector) => document.querySelector(selector);
+const $$ = (selector) => Array.from(document.querySelectorAll(selector));
+let swords = DEFAULT_SWORDS.map(s => ({ ...s }));
+let points = 100;
+let hakiLevel = 15;
+let currentView = 'table';
+let uploadedIcons = new Map();
+let toastTimeout;
+
+const numberFormat = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 });
+const fmt = value => numberFormat.format(Math.round((Number(value) + Number.EPSILON) * 100) / 100);
+const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+function slug(value) {
+  return String(value).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+function normalizeFileName(value) { return slug(String(value).replace(/\.[^.]+$/, '')).replace(/-/g, ''); }
+function calc(sword) {
+  const totalDamage = Number(sword.baseDamage) + Number(sword.statusDamage) * points;
+  const hakiDamage = totalDamage + Number(sword.haki) * hakiLevel;
+  return { ...sword, totalDamage, hakiDamage };
+}
+function selectedSortValue(sword) {
+  const c = calc(sword);
+  switch ($('#sortMode').value) {
+    case 'totalDamage': return c.totalDamage;
+    case 'baseDamage': return c.baseDamage;
+    case 'statusDamage': return c.statusDamage;
+    case 'haki': return c.haki;
+    default: return c.hakiDamage;
+  }
+}
+function getSortedSwords() {
+  return swords.map(calc).sort((a,b) => selectedSortValue(b) - selectedSortValue(a) || b.hakiDamage - a.hakiDamage || a.name.localeCompare(b.name, 'pt-BR'));
+}
+function iconMarkup(sword, compact=false) {
+  const src = uploadedIcons.get(sword.id) || sword.icon || '';
+  const safeSrc = escapeHtml(src);
+  const frameClass = compact ? 'icon-frame' : 'icon-frame';
+  const fallback = '<span aria-hidden="true">⚔</span>';
+  const image = src ? `<img src="${safeSrc}" alt="" loading="lazy" onerror="this.remove()">` : '';
+  if (!compact) return `<div class="${frameClass}">${fallback}${image}</div>`;
+  return `<div class="${frameClass}">${fallback}${image}</div>`;
+}
+function updateStats(sorted) {
+  const byDamage = swords.map(calc).sort((a,b) => b.hakiDamage - a.hakiDamage);
+  const best = byDamage[0], worst = byDamage[byDamage.length - 1];
+  $('#countStat').textContent = swords.length;
+  $('#bestDamageStat').textContent = best ? fmt(best.hakiDamage) : '—';
+  $('#bestNameStat').textContent = best ? best.name : 'Nenhuma espada';
+  $('#worstDamageStat').textContent = worst ? fmt(worst.hakiDamage) : '—';
+  $('#worstNameStat').textContent = worst ? worst.name : 'Nenhuma espada';
+  $('#differenceStat').textContent = best && worst ? fmt(best.hakiDamage - worst.hakiDamage) : '—';
+}
+function updateDescriptions() {
+  const descriptions = {
+    hakiDamage: ['dano com Haki', 'Dano com Haki'],
+    totalDamage: ['dano total, sem Haki', 'Dano total (sem Haki)'],
+    baseDamage: ['dano base', 'Dano base'],
+    statusDamage: ['Dano por Status', 'Dano por Status'],
+    haki: ['atributo Haki', 'Atributo Haki']
+  };
+  const item = descriptions[$('#sortMode').value] || descriptions.hakiDamage;
+  $('#rankDescription').textContent = `Ordenado por ${item[0]}, do maior para o menor.`;
+  $('#chartTitle').textContent = `Gráfico — ${item[1]}`;
+}
+function renderTable(sorted) {
+  const body = $('#tableBody');
+  if (!sorted.length) { body.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhuma espada cadastrada.</td></tr>'; return; }
+  body.innerHTML = sorted.map((s, i) => `
+    <tr class="${i === 0 && $('#sortMode').value === 'hakiDamage' ? 'leader-row' : ''}">
+      <td><span class="rank ${i===0 ? 'first' : ''}">${String(i+1).padStart(2,'0')}</span></td>
+      <td><div class="sword-cell">${iconMarkup(s)}<div><div class="sword-name">${escapeHtml(s.name)}</div><div class="sword-sub">${escapeHtml(s.id)}</div></div><button class="small-action" type="button" data-choose-icon="${escapeHtml(s.id)}" title="Escolher ícone para ${escapeHtml(s.name)}">Ícone</button></div></td>
+      <td class="base-cell">${fmt(s.baseDamage)}</td>
+      <td class="number-cell">${fmt(s.statusDamage)}</td>
+      <td class="number-cell">${fmt(s.haki)}</td>
+      <td class="total-cell">${fmt(s.totalDamage)}</td>
+      <td class="haki-cell">${fmt(s.hakiDamage)}</td>
+    </tr>`).join('');
+  body.querySelectorAll('[data-choose-icon]').forEach(button => button.addEventListener('click', () => chooseIcon(button.dataset.chooseIcon)));
+}
+function renderChart(sorted) {
+  const body = $('#chartBody');
+  if (!sorted.length) { body.innerHTML = '<div class="empty-state">Nenhuma espada cadastrada.</div>'; return; }
+  const key = $('#sortMode').value;
+  const getValue = s => key === 'totalDamage' ? s.totalDamage : key === 'baseDamage' ? s.baseDamage : key === 'statusDamage' ? s.statusDamage : key === 'haki' ? s.haki : s.hakiDamage;
+  const maxValue = Math.max(1, ...sorted.map(getValue));
+  body.innerHTML = sorted.map((s, i) => {
+    const val = getValue(s);
+    const width = Math.max(0, Math.min(100, val / maxValue * 100));
+    return `<div class="bar-row">
+      <div class="bar-name">${iconMarkup(s, true)}<span class="bar-name-text" title="${escapeHtml(s.name)}">${String(i+1).padStart(2,'0')}. ${escapeHtml(s.name)}</span></div>
+      <div class="bar-track" title="${fmt(val)}"><div class="bar-fill" style="width:${width}%"></div></div>
+      <div class="bar-value">${fmt(val)}</div>
+      <div class="bar-secondary">Total: ${fmt(s.totalDamage)} · Haki: ${fmt(s.haki)} · Com Haki: ${fmt(s.hakiDamage)}</div>
+    </div>`;
+  }).join('');
+}
+function updateEditor() { $('#jsonEditor').value = JSON.stringify(swords, null, 2); }
+function render() {
+  const sorted = getSortedSwords();
+  updateStats(sorted);
+  updateDescriptions();
+  renderTable(sorted);
+  renderChart(sorted);
+  $('#tableView').classList.toggle('hidden', currentView === 'chart');
+  $('#chartView').classList.toggle('hidden', currentView === 'table');
+  $$('[data-view]').forEach(button => {
+    const active = button.dataset.view === currentView;
+    button.classList.toggle('primary', active);
+  });
+}
+function setPoints(value) {
+  points = Math.max(0, Math.min(10000, Math.round(Number(value) || 0)));
+  $('#points').value = points;
+  $('#pointsRange').value = Math.min(1000, points);
+  $('#pointsBadge').textContent = fmt(points);
+  render();
+}
+function setHaki(value) {
+  hakiLevel = Math.max(0, Math.min(10000, Math.round(Number(value) || 0)));
+  $('#hakiLevel').value = hakiLevel;
+  $('#hakiRange').value = Math.min(100, hakiLevel);
+  $('#hakiBadge').textContent = fmt(hakiLevel);
+  render();
+}
+function showToast(message) {
+  const toast = $('#toast'); toast.textContent = message; toast.classList.add('visible');
+  clearTimeout(toastTimeout); toastTimeout = setTimeout(() => toast.classList.remove('visible'), 2800);
+}
+function setNotice(message, isError=false) {
+  const el = $('#editorNotice'); el.textContent = message; el.style.color = isError ? 'var(--red)' : 'var(--green)';
+}
+
+// Ícones importados são guardados no IndexedDB do navegador, sem serem enviados para a internet.
+let iconDbPromise;
+function openIconDB() {
+  if (!('indexedDB' in window)) return Promise.resolve(null);
+  if (iconDbPromise) return iconDbPromise;
+  iconDbPromise = new Promise(resolve => {
+    try {
+      const request = indexedDB.open('GBPF_SwordDamageLab', 1);
+      request.onupgradeneeded = () => { const db = request.result; if (!db.objectStoreNames.contains('icons')) db.createObjectStore('icons', { keyPath: 'id' }); };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => resolve(null);
+    } catch (e) { resolve(null); }
+  });
+  return iconDbPromise;
+}
+async function loadStoredIcons() {
+  const db = await openIconDB(); if (!db) return;
+  return new Promise(resolve => {
+    try {
+      const req = db.transaction('icons', 'readonly').objectStore('icons').getAll();
+      req.onsuccess = () => { (req.result || []).forEach(row => uploadedIcons.set(row.id, row.data)); resolve(); };
+      req.onerror = () => resolve();
+    } catch (e) { resolve(); }
+  });
+}
+async function storeIcon(id, data) {
+  uploadedIcons.set(id, data);
+  const db = await openIconDB();
+  if (!db) return false;
+  return new Promise(resolve => {
+    try {
+      const req = db.transaction('icons', 'readwrite').objectStore('icons').put({ id, data });
+      req.onsuccess = () => resolve(true); req.onerror = () => resolve(false);
+    } catch (e) { resolve(false); }
+  });
+}
+function readFileAsDataURL(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(new Error('Falha ao ler arquivo')); reader.readAsDataURL(file);
+  });
+}
+async function chooseIcon(id) {
+  const sword = swords.find(s => s.id === id); if (!sword) return;
+  const input = document.createElement('input'); input.type = 'file'; input.accept = 'image/*';
+  input.addEventListener('change', async () => {
+    const file = input.files && input.files[0]; if (!file) return;
+    try { const data = await readFileAsDataURL(file); const saved = await storeIcon(id, data); render(); showToast(saved ? `Ícone definido: ${sword.name}` : `Ícone carregado para esta sessão: ${sword.name}`); }
+    catch (e) { showToast('Não foi possível carregar esse arquivo de imagem.'); }
+  });
+  input.click();
+}
+async function importIcons(files) {
+  let matched = 0, missed = [];
+  const imageFiles = Array.from(files).filter(f => f.type.startsWith('image/'));
+  for (const file of imageFiles) {
+    const fileName = normalizeFileName(file.name);
+    const matches = swords.map(s => ({ sword: s, id: normalizeFileName(s.id), name: normalizeFileName(s.name) }))
+      .filter(x => fileName === x.id || fileName === x.name || fileName.includes(x.id) || fileName.includes(x.name))
+      .sort((a,b) => Math.max(b.id.length,b.name.length) - Math.max(a.id.length,a.name.length));
+    if (!matches.length) { missed.push(file.name); continue; }
+    try { const data = await readFileAsDataURL(file); await storeIcon(matches[0].sword.id, data); matched++; }
+    catch (e) { missed.push(file.name); }
+  }
+  render();
+  const msg = `${matched} ícone(s) associado(s).` + (missed.length ? ` Não reconhecidos: ${missed.slice(0,3).join(', ')}${missed.length > 3 ? '…' : ''}. Você pode defini-los pelo botão “Ícone” de cada espada.` : '');
+  showToast(msg);
+}
+function normalizeSwordData(input) {
+  if (!Array.isArray(input)) throw new Error('O conteúdo precisa ser uma lista JSON de espadas.');
+  const ids = new Set();
+  return input.map((item, index) => {
+    if (!item || typeof item !== 'object') throw new Error(`Item ${index+1} não é um objeto válido.`);
+    const id = String(item.id || '').trim();
+    const name = String(item.name || '').trim();
+    if (!id || !name) throw new Error(`A espada ${index+1} precisa de “id” e “name”.`);
+    if (ids.has(id)) throw new Error(`O ID “${id}” está duplicado. Cada espada precisa de um ID único.`);
+    ids.add(id);
+    const numericFields = ['baseDamage', 'statusDamage', 'haki'];
+    for (const field of numericFields) {
+      if (item[field] === undefined || !Number.isFinite(Number(item[field])) || Number(item[field]) < 0) {
+        throw new Error(`“${field}” da espada “${name}” precisa ser um número igual ou maior que zero.`);
+      }
+    }
+    return { id, name, baseDamage: Number(item.baseDamage), statusDamage: Number(item.statusDamage), haki: Number(item.haki), icon: String(item.icon || '') };
+  });
+}
+function downloadText(filename, text, type='text/plain;charset=utf-8') {
+  const blob = new Blob([text], { type }); const url = URL.createObjectURL(blob);
+  const link = document.createElement('a'); link.href = url; link.download = filename; document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function exportCSV() {
+  const sorted = getSortedSwords();
+  const rows = [['Posição','Espada','Dano base','Dano por status','Haki','Dano total','Dano com Haki','Pontos','Nível de Haki']];
+  sorted.forEach((s,i) => rows.push([i+1,s.name,s.baseDamage,s.statusDamage,s.haki,s.totalDamage,s.hakiDamage,points,hakiLevel]));
+  const csv = '\uFEFF' + rows.map(row => row.map(value => `"${String(value).replace(/"/g,'""')}"`).join(';')).join('\r\n');
+  downloadText('gbpf-ranking-espadas.csv', csv, 'text/csv;charset=utf-8');
+}
+
+$('#points').addEventListener('input', e => setPoints(e.target.value));
+$('#pointsRange').addEventListener('input', e => setPoints(e.target.value));
+$('#hakiLevel').addEventListener('input', e => setHaki(e.target.value));
+$('#hakiRange').addEventListener('input', e => setHaki(e.target.value));
+$('#sortMode').addEventListener('change', render);
+$$('[data-view]').forEach(button => button.addEventListener('click', () => { currentView = button.dataset.view; render(); }));
+$('#bulkIconButton').addEventListener('click', () => $('#bulkIcons').click());
+$('#bulkIcons').addEventListener('change', async e => { if (e.target.files && e.target.files.length) await importIcons(e.target.files); e.target.value = ''; });
+$('#exportCsvButton').addEventListener('click', exportCSV);
+$('#applyJsonButton').addEventListener('click', () => {
+  try {
+    const next = normalizeSwordData(JSON.parse($('#jsonEditor').value));
+    swords = next; updateEditor(); render(); setNotice('Dados aplicados com sucesso.'); showToast('Dicionário de espadas atualizado.');
+  } catch (e) { setNotice(e.message || 'JSON inválido.', true); }
+});
+$('#downloadJsonButton').addEventListener('click', () => downloadText('gbpf-espadas.json', JSON.stringify(swords, null, 2), 'application/json;charset=utf-8'));
+$('#resetButton').addEventListener('click', () => {
+  swords = DEFAULT_SWORDS.map(s => ({ ...s })); updateEditor(); render(); setNotice('Dados originais restaurados. Ícones importados continuam guardados.'); showToast('Dicionário original restaurado.');
+});
+
+(async function init() {
+  updateEditor();
+  await loadStoredIcons();
+  setPoints(100); setHaki(15); render();
+})();
+</script>
+</body>
+</html>
